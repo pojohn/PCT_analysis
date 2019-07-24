@@ -1,12 +1,13 @@
 # PCT_analysis
 AOT的面試題目
+
 #Factor(六項)：
-               (1)Time
-               (2)Power
-               (3)Force
-               (4)Tail Length
-               (5)EFO Current
-               (6)Temp
+(1)Time
+(2)Power
+(3)Force
+(4)Tail Length
+(5)EFO Current
+(6)Temp
 
 #檢測數據
 1. P/N  pad Ball Shear(推力)
