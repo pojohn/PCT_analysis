@@ -1,0 +1,70 @@
+數據如附件所示，Response值有P pad Ball Shear、N pad Ball Shear、P pad Ball Size(X、Y方向)、N pad Ball Size(X、Y方向)、P pad Ball thickness(Z方向)、N pad Ball thickness(Z方向)
+
+Factor 值放在WB DOE參數 sheet中
+
+主要想知道P/N pad 之間是否有差異，再麻煩你了，謝謝
+
+如果有任何疑問可以問我或是找我討論。
+
+
+#Factor(六項)：
+               (1)Time
+               (2)Power
+               (3)Force
+               (4)Tail Length
+               (5)EFO Current
+               (6)Temp
+
+#檢測數據
+1. P/N  pad Ball Shear(推力)
+2. P/N  pad Ball Size(X、Y方向)
+3. P/N  pad Ball thickness(Z方向)
+
+
+#outlier
+1. 第01片 第5區塊 Ball-Size N(X) 第02顆 原數值是0.7，先暫定72(中位數)
+2. 第05片 第5區塊 Ball-Size P(X) 第10顆 原數值是40，先暫定70(中位數)
+3. 第17片 第5區塊 Ball-Size P(Y) 第08顆 原數值是752，先暫定73(中位數)
+
+
+分析思路：
+           (1)先檢驗各因子(如Time)的 P版與N版有無差異
+                     結果1:有差異，分析時只保留相同因子設定(6片版)的數據
+                     結果3:無差異，分析時使用全部數據
+           (2)分析數據(推力、X、Y、Z方向)的 P/N 版有無差異
+           (3)嘗試分群作法能否分出 P/N 
+	
+					
+##第一部份小結(7/15)
+
+- 不同因子(Factor)會使 P/N 板子在檢驗值(Response)有不同的中位數，代表無法無視因子(Factor)的影響力
+
+- 第二部份的分析會先檢查在同樣因子(Factor)下的檢驗值(Response)有無差異
+    (1) 如果無差異，會將其中6片相同因子(Factor)的數據整合後進行後續檢驗
+    (2) 如果有差異，代表製程本身的誤差波動是無法忽視的，即使P/N 板子檢定出有差異，也有可能只是製程本身的誤差V
+    (3) 如果有差異，表示因子(Factor)是否真的會影響檢驗值(Response)，也是值得懷疑的
+	
+##第二部份小結
+
+- 第二部份的分析檢查出在同樣因子(Factor)下的檢驗值(Response)在Ball-Version P的Ball-Size(Y)兩組的中位數並不相同 ，其K-W test 的p值 = 0.013，但其他三項檢驗值(Response)，在增加樣本數後有顯著改善，這代表製程本身的波動可能是以片為單位，只要樣本數足夠的前提下不會影響到檢驗結果
+- 在同樣因子(Factor) P/N Ball 在Ball-Size(X)、Ball-Size(Y)、Ball-Size(Z)這三項檢驗值(Response)有統計意義上的顯著差異
+-由統計值與圖表來看，這三項檢驗值(Response)它們的分布情況有些許差異，第三部份會嘗試運用這三項檢驗值(Response)將P/N Ball分群
+
+
+
+##第三部份預測
+N=0
+P=1
+
+1.決策樹
+2.keam
+3.隨機森林
+4.GBM
+
+
+
+#xgboost
+# variable names
+features <- setdiff(names(ames_train), "Ball-Version")
+
+  

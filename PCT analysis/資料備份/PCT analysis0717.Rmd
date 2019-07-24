@@ -1,0 +1,421 @@
+---
+title: "PCT analysis"
+author: "C.C."
+date: "2019年7月15日"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+##########
+ # html_document:
+ #   toc:true
+ #   toc_depth:4
+ #   tocfloat:
+ #     collapsed:false
+ #     smooth_scroll:false
+###########
+#RMD設定
+#https://www.rstudio.com/wp-content/uploads/2016/03/rmarkdown-cheatsheet-2.0.pdf
+#表格設定
+#https://medium.com/@kstseng/r-markdown-template-a4b0449a56d5
+#字體設定
+library(showtext)
+#讀入csv檔
+library(readr)
+#表格設定
+library(knitr)
+library(kableExtra)
+library(ellipse)
+library(pheatmap)
+library(DT)
+#資料整理
+library(dplyr)
+#繪圖設定
+library(ggplot2)
+#KW檢定
+library(jmv)
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(fig.showtext=TRUE)
+options(knitr.table.format="html")
+showtext_auto()
+
+#讀入資料
+df<-read_csv("E:/Rtest/PCT analysis/20190715PCT(R).csv",
+            col_types = cols(
+  'No.' = col_character(),
+  'Item' = col_character(),
+  'Time' = col_factor(levels = c(30,40,50), ordered = FALSE, include_na = FALSE),
+  'Power' = col_factor(levels = c(45,60,75), ordered = FALSE, include_na = FALSE),
+  'Force' = col_factor(levels = c(30,40,50), ordered = FALSE, include_na = FALSE),
+  'Tail Length' = col_factor(levels = c(200,250,300), ordered = FALSE, include_na = FALSE),
+  'EFO Current' = col_factor(levels = c(25,35,45), ordered = FALSE, include_na = FALSE),
+  'Temp' = col_factor(levels = c(140,160,180), ordered = FALSE, include_na = FALSE),
+  'Ball-area' = col_factor(levels = c(5,15,25), ordered = FALSE, include_na = FALSE),
+  'Ball-Version ' = col_factor(levels = c("P","N"), ordered = FALSE, include_na = FALSE),
+  'Ball-Shear' = col_double(),
+  'Ball-Size(X) ' = col_double(),
+  'Ball-Size(Y) ' = col_double(),
+  'Ball-Size(Z)  ' = col_double()
+  )
+  )
+#讀入第二部份bgp
+dfbgp<-read_csv("E:/Rtest/PCT analysis/20190717PCT(R)-bgp.csv",
+            col_types = cols(
+  'No.' = col_character(),
+  'Item' = col_character(),
+  'Time' = col_factor(levels = c(30,40,50), ordered = FALSE, include_na = FALSE),
+  'Power' = col_factor(levels = c(45,60,75), ordered = FALSE, include_na = FALSE),
+  'Force' = col_factor(levels = c(30,40,50), ordered = FALSE, include_na = FALSE),
+  'Tail Length' = col_factor(levels = c(200,250,300), ordered = FALSE, include_na = FALSE),
+  'EFO Current' = col_factor(levels = c(25,35,45), ordered = FALSE, include_na = FALSE),
+  'Temp' = col_factor(levels = c(140,160,180), ordered = FALSE, include_na = FALSE),
+  'Ball-area' = col_factor(levels = c(5,15,25), ordered = FALSE, include_na = FALSE),
+  'Ball-Version ' = col_factor(levels = c("P","N"), ordered = FALSE, include_na = FALSE),
+  'Ball-Shear' = col_double(),
+  'Ball-Size(X) ' = col_double(),
+  'Ball-Size(Y) ' = col_double(),
+  'Ball-Size(Z)  ' = col_double(),
+  'Ball-g' = col_character()
+  )
+  )
+#讀入第二部份bgn
+dfbgn<-read_csv("E:/Rtest/PCT analysis/20190717PCT(R)-bgn.csv",
+            col_types = cols(
+  'No.' = col_character(),
+  'Item' = col_character(),
+  'Time' = col_factor(levels = c(30,40,50), ordered = FALSE, include_na = FALSE),
+  'Power' = col_factor(levels = c(45,60,75), ordered = FALSE, include_na = FALSE),
+  'Force' = col_factor(levels = c(30,40,50), ordered = FALSE, include_na = FALSE),
+  'Tail Length' = col_factor(levels = c(200,250,300), ordered = FALSE, include_na = FALSE),
+  'EFO Current' = col_factor(levels = c(25,35,45), ordered = FALSE, include_na = FALSE),
+  'Temp' = col_factor(levels = c(140,160,180), ordered = FALSE, include_na = FALSE),
+  'Ball-area' = col_factor(levels = c(5,15,25), ordered = FALSE, include_na = FALSE),
+  'Ball-Version ' = col_factor(levels = c("P","N"), ordered = FALSE, include_na = FALSE),
+  'Ball-Shear' = col_double(),
+  'Ball-Size(X) ' = col_double(),
+  'Ball-Size(Y) ' = col_double(),
+  'Ball-Size(Z)  ' = col_double(),
+  'Ball-g' = col_character()
+  )
+  )
+```
+
+##前言{.tabset .tabset-fade .tabset-pills}
+
+這一份資料根據e-mail的說明與補充 :
+
+- Factor(六項)：
+    (1) Time
+    (2) Power
+    (3) Force
+    (4) Tail Length
+    (5) EFO Current
+    (6) Temp
+               
+- 檢測數據
+    (1) P/N  pad Ball Shear(推力)
+    (2) P/N  pad Ball Size(X、Y方向)
+    (3) P/N  pad Ball thickness(Z方向)
+
+- outlier
+    (1) 第01片 第5區塊 Ball-Size N(X) 第02顆 原數值是0.7，先暫定72
+    (2) 第05片 第5區塊 Ball-Size P(X) 第10顆 原數值是40，先暫定70
+    (3) 第17片 第5區塊 Ball-Size P(Y) 第08顆 原數值是752，先暫定73
+
+
+##資料表
+
+```{r tabsets, echo=FALSE}
+#表格
+#https://haozhu233.github.io/kableExtra/awesome_table_in_html_cn.html
+#https://rstudio.github.io/DT/
+datatable(df)
+```
+
+
+##資料描述(factor)
+
+```{r factor DESCRIPTIVES, echo=FALSE}
+#資料描述(因子)
+descriptives(df, vars = vars(Item, Time,Power,Force,"Tail Length","EFO Current","Temp","Ball-area","Ball-Version"), freq = TRUE, missing=F,median=F, min=F, max=F,mean=F)
+
+```
+
+##資料描述(Response)
+
+```{r Response DESCRIPTIVES, echo=FALSE}
+#資料描述(因子)
+descriptives(df, vars = vars("Ball-Shear","Ball-Size(X)","Ball-Size(Y)","Ball-Size(Z)"), freq = F, missing=F,range=T,variance=T,sd=T)
+
+```
+
+
+
+## 第一部份:探索式分析
+  (1) 先檢驗不同Time因子的 P版有無差異
+    
+```{r Ball P  time test, echo=FALSE}
+#整理出檢驗Time用資料(P)
+BV<-df$`Ball-Version`
+I<-df$Item
+time1P<-filter(df,I == "1",BV == "P")
+time2P<-filter(df,I == "2",BV == "P")
+time3P<-filter(df,I == "3",BV == "P")
+timeP<-rbind(time1P,time2P,time3P)
+
+
+#Kruskal-Wallis rank sum test
+anovaNP(formula = `Ball-Shear`+`Ball-Size(X)`+`Ball-Size(Y)`+`Ball-Size(Z)` ~ Time, data=timeP)
+```
+
+  (2) 先檢驗不同Time因子的 N版有無差異
+    
+```{r Ball N time test, echo=FALSE}
+#整理出檢驗Time用資料(N)
+time1N<-filter(df,I == "1",BV == "N")
+time2N<-filter(df,I == "2",BV == "N")
+time3N<-filter(df,I == "3",BV == "N")
+timeN<-rbind(time1N,time2N,time3N)
+
+#Kruskal-Wallis rank sum test
+anovaNP(formula = `Ball-Shear`+`Ball-Size(X)`+`Ball-Size(Y)`+`Ball-Size(Z)` ~ Time, data=timeN)
+```
+
+  (3) 先檢驗不同 Power 因子的 P版有無差異
+  
+```{r Ball P  Power test, echo=FALSE}
+#整理出檢驗 Power 用資料(P)
+
+Power1P<-filter(df,I == "4",BV == "P")
+Power2P<-filter(df,I == "5",BV == "P")
+Power3P<-filter(df,I == "6",BV == "P")
+PowerP<-rbind(Power1P,Power2P,Power3P)
+
+
+#Kruskal-Wallis rank sum test
+anovaNP(formula = `Ball-Shear`+`Ball-Size(X)`+`Ball-Size(Y)`+`Ball-Size(Z)` ~ Power, data=PowerP)
+```
+  
+  (4) 先檢驗不同Power因子的 N版有無差異
+
+```{r Ball N  Power test, echo=FALSE}
+#整理出檢驗 Power 用資料(P)
+
+Power1N<-filter(df,I == "4",BV == "N")
+Power2N<-filter(df,I == "5",BV == "N")
+Power3N<-filter(df,I == "6",BV == "N")
+PowerN<-rbind(Power1N,Power2N,Power3N)
+
+
+#Kruskal-Wallis rank sum test
+anovaNP(formula = `Ball-Shear`+`Ball-Size(X)`+`Ball-Size(Y)`+`Ball-Size(Z)` ~ Power, data=PowerN)
+```
+
+  (5) 先檢驗不同Force因子的 P版有無差異
+  
+```{r Ball P  Force test, echo=FALSE}
+#整理出檢驗 Force 用資料(P)
+
+Force1P<-filter(df,I == "7",BV == "P")
+Force2P<-filter(df,I == "8",BV == "P")
+Force3P<-filter(df,I == "9",BV == "P")
+ForceP<-rbind(Force1P,Force2P,Force3P)
+
+
+#Kruskal-Wallis rank sum test
+anovaNP(formula = `Ball-Shear`+`Ball-Size(X)`+`Ball-Size(Y)`+`Ball-Size(Z)` ~ Force, data=ForceP)
+```
+  
+  
+  (6) 先檢驗不同 Force 因子的 N版有無差異
+  
+```{r Ball N  Force test, echo=FALSE}
+#整理出檢驗 Force 用資料(P)
+
+Force1N<-filter(df,I == "7",BV == "N")
+Force2N<-filter(df,I == "8",BV == "N")
+Force3N<-filter(df,I == "9",BV == "N")
+ForceN<-rbind(Force1N,Force2N,Force3N)
+
+
+#Kruskal-Wallis rank sum test
+anovaNP(formula = `Ball-Shear`+`Ball-Size(X)`+`Ball-Size(Y)`+`Ball-Size(Z)` ~ Force, data=ForceN)
+```
+  
+  (7) 先檢驗不同Tail Length因子的 P版有無差異
+  
+```{r Ball P  Tail Length test, echo=FALSE}
+#整理出檢驗 Force 用資料(P)
+
+Tail1P<-filter(df,I == "10",BV == "P")
+Tail2P<-filter(df,I == "11",BV == "P")
+Tail3P<-filter(df,I == "12",BV == "P")
+TailP<-rbind(Tail1P,Tail2P,Tail3P)
+
+#Kruskal-Wallis rank sum test
+anovaNP(formula = `Ball-Shear`+`Ball-Size(X)`+`Ball-Size(Y)`+`Ball-Size(Z)` ~ `Tail Length`, data=TailP)
+```
+  
+  (8) 先檢驗不同Tail Length因子的 N版有無差異
+  
+```{r Ball N  Tail Length test, echo=FALSE}
+#整理出檢驗 Force 用資料(P)
+
+Tail1N<-filter(df,I == "10",BV == "N")
+Tail2N<-filter(df,I == "11",BV == "N")
+Tail3N<-filter(df,I == "12",BV == "N")
+TailN<-rbind(Tail1N,Tail2N,Tail3N)
+
+#Kruskal-Wallis rank sum test
+anovaNP(formula = `Ball-Shear`+`Ball-Size(X)`+`Ball-Size(Y)`+`Ball-Size(Z)` ~ `Tail Length`, data=TailN)
+```
+  
+  (9) 先檢驗不同EFO Current因子的 P版有無差異
+
+```{r Ball P  EFO Current test, echo=FALSE}
+#整理出檢驗 EFO Current 用資料(P)
+
+EFO1P<-filter(df,I == "13",BV == "P")
+EFO2P<-filter(df,I == "14",BV == "P")
+EFO3P<-filter(df,I == "15",BV == "P")
+EFOP<-rbind(EFO1P,EFO2P,EFO3P)
+
+#Kruskal-Wallis rank sum test
+anovaNP(formula = `Ball-Shear`+`Ball-Size(X)`+`Ball-Size(Y)`+`Ball-Size(Z)` ~ `EFO Current`, data=EFOP)
+```  
+  
+  
+  (10) 先檢驗不同EFO Current因子的 N版有無差異
+ 
+```{r Ball N  EFO Current test, echo=FALSE}
+#整理出檢驗 Force 用資料(P)
+
+EFO1N<-filter(df,I == "13",BV == "N")
+EFO2N<-filter(df,I == "14",BV == "N")
+EFO3N<-filter(df,I == "15",BV == "N")
+EFON<-rbind(EFO1N,EFO2N,EFO3N)
+
+#Kruskal-Wallis rank sum test
+anovaNP(formula = `Ball-Shear`+`Ball-Size(X)`+`Ball-Size(Y)`+`Ball-Size(Z)` ~ `EFO Current`, data=EFON)
+```  
+  
+  (11) 先檢驗不同 Temp 因子的 P版有無差異
+  
+```{r Ball P  Temp test, echo=FALSE}
+#整理出檢驗 Temp 用資料(P)
+Temp1P<-filter(df,I == "16",BV == "P")
+Temp2P<-filter(df,I == "17",BV == "P")
+Temp3P<-filter(df,I == "18",BV == "P")
+TempP<-rbind(Temp1P,Temp2P,Temp3P)
+
+#Kruskal-Wallis rank sum test
+anovaNP(formula = `Ball-Shear`+`Ball-Size(X)`+`Ball-Size(Y)`+`Ball-Size(Z)` ~ `Temp`, data=TempP)
+```    
+  
+  (12) 先檢驗不同 Temp 因子的 N版有無差異
+  
+```{r Ball N  Temp test, echo=FALSE}
+#整理出檢驗 Temp 用資料(N)
+
+Temp1N<-filter(df,I == "16",BV == "N")
+Temp2N<-filter(df,I == "17",BV == "N")
+Temp3N<-filter(df,I == "18",BV == "N")
+TempN<-rbind(Temp1N,Temp2N,Temp3N)
+
+#Kruskal-Wallis rank sum test
+anovaNP(formula = `Ball-Shear`+`Ball-Size(X)`+`Ball-Size(Y)`+`Ball-Size(Z)` ~ `Temp`, data=TempN)
+```    
+
+
+##第一部份小結
+
+- 不同因子(Factor)會使 P/N 板子在檢驗值(Response)有不同的中位數，代表無法無視因子(Factor)的影響力
+
+- 第二部份的分析會先檢查在同樣因子(Factor)下的檢驗值(Response)有無差異
+    (1) 如果無差異，會將其中6片相同因子(Factor)的數據整合後進行後續檢驗
+    (2) 如果有差異，代表製程本身的誤差波動是無法忽視的，即使P/N 板子檢定出有差異，也有可能只是製程本身的誤差
+    (3) 如果有差異，表示因子(Factor)是否真的會影響檢驗值(Response)，也是值得懷疑的
+
+
+
+
+
+## 第二部份:驗證同因子製程誤差波動
+
+  (1)同製程因子的六片版互相對照，版子(P)編號(2,5,8,11,14,17)
+```{r 6 Ball same P factor test, echo=FALSE}
+#整理出檢驗 factor 用資料(N)
+factor1P<-filter(df,I == "2",BV == "P")
+factor2P<-filter(df,I == "5",BV == "P")
+factor3P<-filter(df,I == "8",BV == "P")
+factor4P<-filter(df,I == "11",BV == "P")
+factor5P<-filter(df,I == "14",BV == "P")
+factor6P<-filter(df,I == "17",BV == "P")
+factorP<-rbind(factor1P,factor2P,factor3P,factor4P,factor5P,factor6P)
+
+#Kruskal-Wallis rank sum test
+anovaNP(formula = `Ball-Shear`+`Ball-Size(X)`+`Ball-Size(Y)`+`Ball-Size(Z)` ~ `Item`, data=factorP)
+```  
+
+  (2)同製程因子的六片版互相對照，版子(N)編號(2,5,8,11,14,17)
+
+```{r 6 Ball same N factor test, echo=FALSE}
+#整理出檢驗 factor 用資料(N)
+factor1N<-filter(df,I == "2",BV == "N")
+factor2N<-filter(df,I == "5",BV == "N")
+factor3N<-filter(df,I == "8",BV == "N")
+factor4N<-filter(df,I == "11",BV == "N")
+factor5N<-filter(df,I == "14",BV == "N")
+factor6N<-filter(df,I == "17",BV == "N")
+factorN<-rbind(factor1N,factor2N,factor3N,factor4N,factor5N,factor6N)
+
+#Kruskal-Wallis rank sum test
+anovaNP(formula = `Ball-Shear`+`Ball-Size(X)`+`Ball-Size(Y)`+`Ball-Size(Z)` ~ `Item`, data=factorN)
+```  
+
+(3)同製程因子的六片版分兩組比較，版子(P)編號(2,5,8),(11,14,17)
+
+```{r 2 Ball same P factor test, echo=FALSE}
+anovaNP(formula = `Ball-Shear`+`Ball-Size(X)`+`Ball-Size(Y)`+`Ball-Size(Z)` ~ `Ball-g`, data=dfbgp)
+```
+
+(4)同製程因子的六片版分兩組比較，版子(N)編號(2,5,8),(11,14,17)
+
+```{r 2 Ball same N factor test, echo=FALSE}
+anovaNP(formula = `Ball-Shear`+`Ball-Size(X)`+`Ball-Size(Y)`+`Ball-Size(Z)` ~ `Ball-g`, data=dfbgn)
+```
+
+(5)同製程因子的六片版分 P/N 兩組比較，編號(2,5,8,11,14,17)
+
+```{r  Ball  P/N  test, echo=FALSE}
+#整理出 編號(2,5,8,11,14,17)，的版子資料
+BV1<-filter(df,I == "2")
+BV2<-filter(df,I == "5")
+BV3<-filter(df,I == "8")
+BV4<-filter(df,I == "11")
+BV5<-filter(df,I == "14")
+BV6<-filter(df,I == "17")
+BV<-rbind(BV1,BV2,BV3,BV4,BV5,BV6)
+
+#MU test
+ttestIS(formula =`Ball-Shear`+`Ball-Size(X)`+`Ball-Size(Y)`+`Ball-Size(Z)` ~ `Ball-Version`,mann = TRUE, data = BV)
+
+#描述 P/N 
+descriptives(data=BV, vars = vars( "Ball-Shear","Ball-Size(X)","Ball-Size(Y)", "Ball-Size(Z)"),splitBy ="Ball-Version" ,box = T, violin = T,sd=T,variance=T,dens=T,skew = T,kurt=T, freq = F)
+```
+
+##第二部份小結
+
+- 第二部份的分析檢查出在同樣因子(Factor)下的檢驗值(Response)在Ball-Version P的Ball-Size(Y)兩組的中位數並不相同 ，其K-W test 的p值 = 0.013，但其他三項檢驗值(Response)，在增加樣本數後有顯著改善，這代表製程本身的波動可能是以片為單位，只要樣本數足夠的前提下不會影響到檢驗結果
+- 在同樣因子(Factor) P/N Ball 在Ball-Size(X)、Ball-Size(Y)、Ball-Size(Z)這三項檢驗值(Response)有統計意義上的顯著差異
+- 由統計值與圖表來看，這三項檢驗值(Response)它們的分布情況有些許差異，第三部份會嘗試運用這三項檢驗值(Response)將P/N Ball分群
+ 
+
+##第三部份：分群與預測
+
+
+##結論
+
+- 不同因子(Factor)會使 P/N 板子在檢驗值(Response)有不同的中位數，但也有可能是製程波動造成的，建議是增加樣本數後再進行檢定
+- 製程本身的波動可能是以片為單位，只要樣本數足夠的前提下不會影響到檢驗結果
+- 在同樣因子(Factor) N Ball在X、Y高於P Ball，在Z低於P Ball
